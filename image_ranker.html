@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html ng-app="imageClassifier" ng-controller="MainController">
+<head>
+	<title>Image Classifier</title>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+	<script type='text/javascript' src='http://code.jquery.com/jquery-latest.min.js'></script>
+	<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+	<!-- <script src="js/jquery-1.11.2.min.js"></script>
+	<script src="js/polyclip-p.js"></script>
+	<script type="text/javascript" src="crop.js"></script> -->
+	<!--<script type='text/javascript' src='http://code.jquery.com/jquery-latest.min.js'></script>-->
+	<script src="./node_modules/angular/angular.js" type="text/javascript" ></script>
+    <script src="./node_modules/angular-animate/angular-animate.js" type="text/javascript" ></script>
+    <script src="./node_modules/angular-aria/angular-aria.js" type="text/javascript"></script>
+    <script src="./node_modules/angular-material/angular-material.js" type="text/javascript" ></script>
+
+    <script src="node_modules/angular-route/angular-route.js"></script>
+    <script src="node_modules/angular-resource/angular-resource.js"></script>
+
+    <script src="mainController.js"></script>  
+	<link rel="stylesheet" type="text/css" href="image_ranker_style.css">
+
+</head>
+<body>
+	<div class="row">
+		<div id="sidebar">
+			<div class='form-row space-around' ng-repeat="image in images">
+				<div class="image-icon">
+					<img class="image" src={{image.filename}} ng-click="setImage(image.filename)">
+				</div>
+				<span class="check-mark" ng-show="image.submit_status">&#x2705;</span>
+			</div>
+		</div>
+		<div id="image">
+			<canvas id='hiddenCanvas' width='540' height='720'></canvas>
+			<canvas id='imageCanvas' width='540' height='720'></canvas>
+		</div>
+		<form id="form">
+			<div id="selector" class="form-subsection">
+				<div class="form-row">
+					<button class="form-button" id='lasso-button' style="background-color: #a4bfea;" ng-click="setMode(0)">Lasso</button>
+					<button class="form-button" id='point-button' style="background-color: #f9f9f9;" ng-click="setMode(1)">Point</button>
+				</div>
+				<div class="form-row" style="display: none;" id="point-controller">
+					<label class="coord-label">x: </label>
+					<input id='coordinate-label-x' type="text">
+					<label class="coord-label">y: </label>
+					<input id='coordinate-label-y' type="text">
+					<button ng-click="captureCoordinates()" style="background-color: #f9f9f9;">Capture</button>
+				</div>
+				<div id="lasso-controller">
+					<div class="form-row">
+						<input type="text" id="ratio-label" style="width: 110px;">
+					</div>
+					<div class='form-row'>
+						<button class="form-button" ng-click="restoreImage()" id="restore-button" style="background-color: #f9f9f9;">Restore</button>
+						<button class="form-button" id="calculate" ng-click="onCalculateClick()" style="background-color: #f9f9f9;">Calculate</button>
+					</div>
+				</div>
+				<div id="checkbox">
+					<label style="margin-right: 2px; margin-top: 0px;">Good</label>
+					<input style="border: 0;" type="checkbox" id="image-rank-check">
+				</div>
+			</div>
+			<div id="rectangle-form" class="form-subsection" ng-click="setSection(0)" style="background-color: #70a1ef;">
+				<p class="header-text">Rectangle</p>
+				<div class="form-row">
+					<label class="subheader-text">Size ratio</label>
+					<input type="text" class="input-box" id="rect-area-box" ng-model='form.rectangle.area'>
+				</div>
+				<div class="form-row">
+					<label class="subheader-text">x</label>
+					<input type="text" class="input-box" id="rect-x" ng-model='form.rectangle.x'>
+					<label class="subheader-text">y</label>
+					<input type="text" class="input-box" id="rect-y" ng-model='form.rectangle.y'>
+				</div>
+				<div class="form-row">
+					<label class="subheader-text">Count</label>
+					<input type="text" class="input-box" ng-model='form.rectangle.count'>
+					<label class="subheader-text">Blur</label>
+					<input type="text" class="input-box" ng-model='form.rectangle.blur'>
+				</div>
+				<div class="form-row">
+					<label class="subheader-text">Layer index</label>
+					<input type="text" class="input-box" ng-model='form.rectangle.z'>
+					<label class="subheader-text">Direction</label>
+					<input type="text" class="input-box" ng-model='form.rectangle.direction'>
+				</div>
+			</div>
+			<div id="circle-form" class="form-subsection" ng-click="setSection(1)">
+				<p class="header-text">Circle</p>
+				<div class="form-row">
+					<label class="subheader-text">Size ratio</label>
+					<input type="text" class="input-box" id="circle-area-box" ng-model='form.circle.area'>
+				</div>
+				<div class="form-row">
+					<label class="subheader-text">x</label>
+					<input type="text" class="input-box" id="circle-x" ng-model='form.circle.x'>
+					<label class="subheader-text">y</label>
+					<input type="text" class="input-box" id="circle-y" ng-model='form.circle.y'>
+				</div>
+				<div class="form-row">
+					<label class="subheader-text">Count</label>
+					<input type="text" class="input-box" ng-model='form.circle.count'>
+					<label class="subheader-text">Blur</label>
+					<input type="text" class="input-box" ng-model='form.circle.blur'>
+				</div>
+				<div class="form-row">
+					<label class="subheader-text">Layer index</label>
+					<input type="text" class="input-box" ng-model='form.circle.z'>
+				</div>
+			</div>
+			<div id="triangle-form" class="form-subsection" ng-click="setSection(2)">
+				<p class="header-text">Triangle</p>
+				<div class="form-row">
+					<label class="subheader-text">Size ratio</label>
+					<input type="text" class="input-box" id="tri-area-box" ng-model='form.tri.area'>
+				</div>
+				<div class="form-row">
+					<label class="subheader-text">x</label>
+					<input type="text" class="input-box" id="tri-x" ng-model='form.tri.x'>
+					<label class="subheader-text">y</label>
+					<input type="text" class="input-box" id="tri-y" ng-model='form.tri.y'>
+				</div>
+				<div class="form-row">
+					<label class="subheader-text">Count</label>
+					<input type="text" class="input-box" ng-model='form.tri.count'>
+					<label class="subheader-text">Blur</label>
+					<input type="text" class="input-box" ng-model='form.tri.blur'>
+				</div>
+				<div class="form-row">
+					<label class="subheader-text">Layer index</label>
+					<input type="text" class="input-box" ng-model='form.tri.z'>
+					<label class="subheader-text">Direction</label>
+					<input type="text" class="input-box" ng-model='form.tri.direction'>
+				</div>
+			</div>
+			<div id="capsule-form" class="form-subsection" ng-click="setSection(3)">
+				<p class="header-text">Capsule</p>
+				<div class="form-row">
+					<label class="subheader-text">Size ratio</label>
+					<input type="text" class="input-box" id="cap-area-box" ng-model='form.cap.area'>
+				</div>
+				<div class="form-row">
+					<label class="subheader-text">x</label>
+					<input type="text" class="input-box" id="cap-x" ng-model='form.cap.x'>
+					<label class="subheader-text">y</label>
+					<input type="text" class="input-box" id="cap-y" ng-model='form.cap.y'>
+				</div>
+				<div class="form-row">
+					<label class="subheader-text">Count</label>
+					<input type="text" class="input-box" ng-model='form.cap.count'>
+					<label class="subheader-text">Blur</label>
+					<input type="text" class="input-box" ng-model='form.cap.blur'>
+				</div>
+				<div class="form-row">
+					<label class="subheader-text">Layer index</label>
+					<input type="text" class="input-box" ng-model='form.cap.z'>
+					<label class="subheader-text">Direction</label>
+					<input type="text" class="input-box" ng-model='form.cap.blur'>
+				</div>
+			</div>
+			<div id="human1-form" class="form-subsection" ng-click="setSection(4)">
+				<p class="header-text">Human body</p>
+				<div class="form-row">
+					<label class="subheader-text">Size ratio</label>
+					<input type="text" class="input-box" id="hum1-area-box" ng-model='form.hum1.area'>
+				</div>
+				<div class="form-row">
+					<label class="subheader-text">x</label>
+					<input type="text" class="input-box" id="hum1-x" ng-model='form.hum1.x'>
+					<label class="subheader-text">y</label>
+					<input type="text" class="input-box" id="hum1-y" ng-model='form.hum1.y'>
+				</div>
+				<div class="form-row">
+					<label class="subheader-text">Count</label>
+					<input type="text" class="input-box" ng-model='form.hum1.count'>
+				</div>
+				<div class="form-row">
+					<label class="subheader-text">Layer index</label>
+					<input type="text" class="input-box" ng-model='form.hum1.z'>
+					<label class="subheader-text">Direction</label>
+					<input type="text" class="input-box" ng-model='form.hum1.direction'>
+				</div>
+			</div>
+			<div id="human2-form" class="form-subsection" ng-click="setSection(5)">
+				<p class="header-text">Human face</p>
+				<div class="form-row">
+					<label class="subheader-text">Size ratio</label>
+					<input type="text" class="input-box" id="hum2-area-box" ng-model='form.hum2.area'>
+				</div>
+				<div class="form-row">
+					<label class="subheader-text">x</label>
+					<input type="text" class="input-box" id="hum2-x" ng-model='form.hum2.x'>
+					<label class="subheader-text">y</label>
+					<input type="text" class="input-box" id="hum2-y" ng-model='form.hum2.y'>
+				</div>
+				<div class="form-row">
+					<label class="subheader-text">Count</label>
+					<input type="text" class="input-box" ng-model='form.hum2.count'>
+				</div>
+				<div class="form-row">
+					<label class="subheader-text">Layer index</label>
+					<input type="text" class="input-box" ng-model='form.hum2.z'>
+					<label class="subheader-text">Direction</label>
+					<input type="text" class="input-box" ng-model='form.hum2.direction'>
+				</div>
+			</div>
+			<div id="text-form" class="form-subsection" ng-click="setSection(6)">
+				<p class="header-text">Text</p>
+				<div class="form-row">
+					<label class="subheader-text">Size ratio</label>
+					<input type="text" class="input-box" id="text-area-box" ng-model='form.txt.area'>
+				</div>
+				<div class="form-row">
+					<label class="subheader-text">x</label>
+					<input type="text" class="input-box" id="text-x" ng-model='form.txt.x'>
+					<label class="subheader-text">y</label>
+					<input type="text" class="input-box" id="text-y" ng-model='form.txt.y'>
+				</div>
+				<div class="form-row">
+					<label class="subheader-text">Count</label>
+					<input type="text" class="input-box" ng-model='form.txt.count'>
+				</div>
+				<div class="form-row">
+					<label class="subheader-text">Layer index</label>
+					<input type="text" class="input-box" ng-model='form.txt.z'>
+					<label class="subheader-text">Direction</label>
+					<input type="text" class="input-box" ng-model='form.txt.direction'>
+				</div>
+			</div>
+			<div id="background-form" class="form-subsection" ng-click="setSection(7)">
+				<p class="header-text">Background</p>
+				<div id="flat-colors-subform">
+					<p class="subheader-text">Colors</p>
+					<div class="form-row space-around">
+						<div class="image-icon-container"><img class="image-icon" src="background/color-1.png"></div>
+						<input type="text" class="input-color-text input-box" ng-model="form.back.c1">
+						<div class="image-icon-container"><img class="image-icon" src="background/color-2.png"></div>
+						<input type="text" class="input-color-text input-box" ng-model="form.back.c2">
+						<div class="image-icon-container"><img class="image-icon" src="background/color-3.png"></div>
+						<input type="text" class="input-color-text input-box" ng-model="form.back.c3">
+						<div class="image-icon-container"><img class="image-icon" src="background/color-4.png"></div>
+						<input type="text" class="input-color-text input-box" ng-model="form.back.c4">
+						<div class="image-icon-container"><img class="image-icon" src="background/color-5.png"></div>
+						<input type="text" class="input-color-text input-box" ng-model="form.back.c5">
+					</div>
+				</div>
+				<div id="gradient-colors-subform">
+					<p class="subheader-text">Gradient</p>
+					<div class="form-row space-around">
+						<div class="image-icon-container"><img class="image-icon" src="background/gradient-1.png"></div>
+						<input type="text" class="input-color-text input-box" ng-model="form.back.g1">
+						<div class="image-icon-container"><img class="image-icon" src="background/gradient-2.png"></div>
+						<input type="text" class="input-color-text input-box" ng-model="form.back.g2">
+						<div class="image-icon-container"><img class="image-icon" src="background/gradient-3.png"></div>
+						<input type="text" class="input-color-text input-box" ng-model="form.back.g3">
+						<div class="image-icon-container"><img class="image-icon" src="background/gradient-4.png"></div>
+						<input type="text" class="input-color-text input-box" ng-model="form.back.g4">
+					</div>
+					<div class="form-row space-around">
+						<div class="image-icon-container"><img class="image-icon" src="background/gradient-5.png"></div>
+						<input type="text" class="input-color-text input-box" ng-model="form.back.g5">
+						<div class="image-icon-container"><img class="image-icon" src="background/gradient-6.png"></div>
+						<input type="text" class="input-color-text input-box" ng-model="form.back.g6">
+						<div class="image-icon-container"><img class="image-icon" src="background/gradient-7.png"></div>
+						<input type="text" class="input-color-text input-box" ng-model="form.back.g7">
+						<div class="image-icon-container"><img class="image-icon" src="background/gradient-8.png"></div>
+						<input type="text" class="input-color-text input-box" ng-model="form.back.g8">
+					</div>
+					<div class="form-row">
+						<label class="subheader-text">Direction</label>
+						<input type="text" class="input-box" ng-model="form.back.direction">
+					</div>
+				</div>
+			</div>
+			<div id="color-form" class="form-subsection" ng-click="setSection(8)">
+				<p class="header-text">Color</p>
+				<div id="flat-colors-subform">
+					<p class="subheader-text">Colors</p>
+					<div class="form-row space-around">
+						<div class="image-icon-container"><img class="image-icon" src="elements/color-1.png"></div>
+						<input type="text" class="input-color-text input-box" ng-model="form.hue.c1">
+						<div class="image-icon-container"><img class="image-icon" src="elements/color-2.png"></div>
+						<input type="text" class="input-color-text input-box" ng-model="form.hue.c2">
+						<div class="image-icon-container"><img class="image-icon" src="elements/color-3.png"></div>
+						<input type="text" class="input-color-text input-box" ng-model="form.hue.c3">
+						<div class="image-icon-container"><img class="image-icon" src="elements/color-4.png"></div>
+						<input type="text" class="input-color-text input-box" ng-model="form.hue.c4">
+						<div class="image-icon-container"><img class="image-icon" src="elements/color-5.png"></div>
+						<input type="text" class="input-color-text input-box" ng-model="form.hue.c5">
+					</div>
+					<div class="form-row space-around">
+						<div class="image-icon-container"><img class="image-icon" src="elements/color-6.png"></div>
+						<input type="text" class="input-color-text input-box" ng-model="form.hue.c6">
+						<div class="image-icon-container"><img class="image-icon" src="elements/color-7.png"></div>
+						<input type="text" class="input-color-text input-box" ng-model="form.hue.c7">
+						<div class="image-icon-container"><img class="image-icon" src="elements/color-8.png"></div>
+						<input type="text" class="input-color-text input-box" ng-model="form.hue.c8">
+						<div class="image-icon-container"><img class="image-icon" src="elements/color-9.png"></div>
+						<input type="text" class="input-color-text input-box" ng-model="form.hue.c9"> 
+						<div class="image-icon-container"><img class="image-icon" src="elements/color-10.png"></div>
+						<input type="text" class="input-color-text input-box" ng-model="form.hue.c10">
+					</div>
+				</div>
+				<div id="gradient-colors-subform">
+					<p class="subheader-text">Gradient</p>
+					<div class="form-row space-around">
+						<div class="image-icon-container"><img class="image-icon" src="elements/gradient-1.png"></div>
+						<input type="text" class="input-color-text input-box" ng-model="form.hue.g1">
+						<div class="image-icon-container"><img class="image-icon" src="elements/gradient-2.png"></div>
+						<input type="text" class="input-color-text input-box" ng-model="form.hue.g2">
+						<div class="image-icon-container"><img class="image-icon" src="elements/gradient-3.png"></div>
+						<input type="text" class="input-color-text input-box" ng-model="form.hue.g3">
+						<div class="image-icon-container"><img class="image-icon" src="elements/gradient-4.png"></div>
+						<input type="text" class="input-color-text input-box" ng-model="form.hue.g4">
+					</div>
+					<div class="form-row space-around">
+						<div class="image-icon-container"><img class="image-icon" src="elements/gradient-5.png"></div>
+						<input type="text" class="input-color-text input-box" ng-model="form.hue.g5">
+						<div class="image-icon-container"><img class="image-icon" src="elements/gradient-6.png"></div>
+						<input type="text" class="input-color-text input-box" ng-model="form.hue.g6">
+						<div class="image-icon-container"><img class="image-icon" src="elements/gradient-7.png"></div>
+						<input type="text" class="input-color-text input-box" ng-model="form.hue.g7">
+						<div class="image-icon-container"><img class="image-icon" src="elements/gradient-8.png"></div>
+						<input type="text" class="input-color-text input-box" ng-model="form.hue.g8">
+					</div>
+					<div class="form-row space-around">
+						<div class="image-icon-container"><img class="image-icon" src="elements/gradient-9.png"></div>
+						<input type="text" class="input-color-text input-box" ng-model="form.hue.g9">
+						<div class="image-icon-container"><img class="image-icon" src="elements/gradient-10.png"></div>
+						<input type="text" class="input-color-text input-box" ng-model="form.hue.g10">
+						<div class="image-icon-container"><img class="image-icon" src="elements/gradient-11.png"></div>
+						<input type="text" class="input-color-text input-box" ng-model="form.hue.g11">
+						<div class="image-icon-container"><img class="image-icon" src="elements/gradient-12.png"></div>
+						<input type="text" class="input-color-text input-box" ng-model="form.hue.g12">
+					</div>
+					<div class='form-row'>
+						<label class="subheader-text">Direction</label>
+						<input type="text" class="input-box" ng-model="form.hue.direction">
+					</div>
+				</div>
+			</div>
+			<div id="submit-form">
+				<input id="submit-form-button" type="submit" value="Submit" style="background-color: #f9f9f9; width: 150px; font-size: 20px; margin-top: 10px">
+				<label id="submit-success-label" style="visibility: hidden;">Updated</label>
+			</div>
+
+		</form>
+	</div>
+</body>
+</html>
